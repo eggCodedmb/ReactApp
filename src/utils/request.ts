@@ -4,12 +4,22 @@ import axios, {
   AxiosResponse,
   InternalAxiosRequestConfig,
 } from 'axios';
+import Storage from './storage';
+const BASE_API = 'http://192.168.1.114:3000/api'; // 基础地址
 
-const BASE_API = '/api'; // 基础地址
+interface IData {
+  code: number;
+  message: string;
+  result: any;
+}
+
+interface MyAxiosResponse<T = any> extends AxiosResponse<T> {
+  data: T;
+}
 
 class HttpClient {
   private service: AxiosInstance;
-
+  private token: string | null = null;
   constructor(config: AxiosRequestConfig) {
     this.service = axios.create(config);
 
@@ -21,16 +31,45 @@ class HttpClient {
 
     // 响应拦截
     this.service.interceptors.response.use(
-      this.handleResponseSuccess,
-      this.handleResponseError,
+      this.handleResponseSuccess, // 响应成功处理
+      this.handleResponseError, // 响应错误处理
     );
   }
 
+  // 加载Token
+  private async loadToken() {
+    try {
+      const token = await Storage.get('token');
+      this.token = token;
+    } catch (error) {
+      console.error('加载Token失败:', error);
+    }
+  }
+
+  // 删除Token
+  private async deleteToken() {
+    try {
+      await Storage.remove('token');
+      this.token = null;
+      console.log('删除Token成功');
+    } catch (error) {
+      console.error('删除Token失败:', error);
+    }
+  }
+
   // 请求成功处理
-  private handleRequestSuccess = (
+  private handleRequestSuccess = async (
     config: InternalAxiosRequestConfig,
-  ): InternalAxiosRequestConfig => {
-    // 自动处理不同Content-Type
+  ): Promise<InternalAxiosRequestConfig<any>> => {
+    await this.loadToken();
+    // 合并headers
+    const headers = config.headers || {};
+
+    // 添加Authorization头
+    if (this.token) {
+      headers.Authorization = `Bearer ${this.token}`;
+    }
+
     if (config.headers['Content-Type'] === 'form') {
       config.headers['Content-Type'] = 'application/x-www-form-urlencoded';
       config.transformRequest = [data => this.stringifyFormData(data)];
@@ -51,7 +90,7 @@ class HttpClient {
   };
 
   // 响应成功处理
-  private handleResponseSuccess = (response: AxiosResponse): any => {
+  private handleResponseSuccess = (response: MyAxiosResponse<IData>): any => {
     // 请求计时结束
     const endTime = new Date();
     const duration =
@@ -66,17 +105,32 @@ class HttpClient {
 
     // 根据业务状态码处理
     const data = response.data;
-    if (response.status === 200) {
+    if (data.code === 0) {
       return data;
     } else {
-      this.handleBusinessError(response.status, response.statusText);
-      return Promise.reject(new Error(response.statusText || 'Error'));
+      this.handleBusinessError(data, data.message);
+      return Promise.reject(new Error(data.message));
     }
   };
 
   // 响应错误处理
   private handleResponseError = (error: any): Promise<any> => {
-    return Promise.reject(error);
+    const code = error.response?.data?.code || 500;
+    switch (code) {
+      case 10401:
+        this.deleteToken();
+        break;
+      case 403:
+        // 处理无权限
+        break;
+      case 404:
+        // 处理接口不存在
+        break;
+      default:
+        // 处理其他错误
+        break;
+    }
+    return Promise.reject(error.response.data);
   };
 
   // 处理业务错误

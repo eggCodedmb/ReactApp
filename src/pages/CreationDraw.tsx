@@ -14,8 +14,6 @@ export default function CreationScreen() {
   const [description, setDescription] = useState('');
   const [selectedStyle, setSelectedStyle] = useState('');
   const [selectedSize, setSelectedSize] = useState('');
-  console.log('selectedStyle:', selectedStyle);
-  console.log('selectedSize:', selectedSize);
 
   const styleTags = [
     {label: '通用6.0', value: 'sd15'},

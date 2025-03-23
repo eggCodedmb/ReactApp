@@ -10,72 +10,112 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import {login, register} from '../api/login';
-interface Props {
-  onLoginSuccess: () => void;
-}
-
-export default function AuthScreen({onLoginSuccess}: Props) {
+import {useRoute, RouteProp} from '@react-navigation/native';
+import storage from '../utils/storage';
+export default function Login() {
+  type LoginRouteParams = {
+    onLoginSuccess?: () => void;
+  };
+  const route = useRoute<RouteProp<{params: LoginRouteParams}, 'params'>>();
   const [isRegistering, setIsRegistering] = useState(false);
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [email, setEmail] = useState('');
+  const [formData, setFormData] = useState({
+    username: 'dmb1234',
+    password: '1234Dong',
+    confirmPassword: '',
+    email: '',
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // 从路由参数获取登录成功回调
+  const onLoginSuccess = route.params?.onLoginSuccess;
+
+  // 表单验证规则
   const validateForm = () => {
-    if (!username || !password) {
-      setError('用户名和密码为必填项');
+    const {username, password, confirmPassword, email} = formData;
+    const errors = [];
+
+    if (!username.trim()) errors.push('用户名不能为空');
+    if (!password) errors.push('密码不能为空');
+
+    if (isRegistering) {
+      if (password !== confirmPassword) errors.push('两次密码输入不一致');
+      if (!/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(email)) {
+        errors.push('请输入有效的邮箱地址');
+      }
+    }
+
+    if (errors.length > 0) {
+      setError(errors.join('\n'));
       return false;
     }
-    if (isRegistering) {
-      if (password !== confirmPassword) {
-        setError('两次密码输入不一致');
-        return false;
-      }
-      if (!/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(email)) {
-        setError('请输入有效的邮箱地址');
-        return false;
-      }
-    }
-    setError('');
     return true;
   };
 
+  // 表单提交处理
   const handleSubmit = async () => {
     if (!validateForm()) return;
 
     setLoading(true);
     try {
       if (isRegistering) {
-        // 处理注册逻辑
-        const res = await register({username, password, email});
-        if (res.code === 200) {
-          Alert.alert('注册成功', '请使用新账号登录');
-          setIsRegistering(false);
+        const res = await register(formData);
+        if (res.code === 0) {
+          Alert.alert('注册成功', '请使用新账号登录', [
+            {
+              text: '确定',
+              onPress: () => {
+                setIsRegistering(false);
+                setFormData(prev => ({
+                  ...prev,
+                  password: '',
+                  confirmPassword: '',
+                  email: '',
+                }));
+              },
+            },
+          ]);
+        } else {
+          setError(res.message || '注册失败');
         }
       } else {
-        // 处理登录逻辑
-        const res = await login({username, password});
-        if (res.code === 200) {
-          await AsyncStorage.setItem('user', JSON.stringify(res.result));
-          onLoginSuccess();
+        const res = await login({
+          username: formData.username,
+          password: formData.password,
+        });
+
+        if (res.code === 0) {
+          await storage.set('token', res.result.token);
+          const user = {...res.result.user};
+          await storage.set('user', {...user});
+          onLoginSuccess?.();
+        } else {
+          setError(res.message || '登录失败');
         }
       }
     } catch (err) {
-      setError(err.message || '请求失败，请重试');
+      setError((err as Error).message || '网络请求失败');
     } finally {
       setLoading(false);
     }
+  };
+
+  // 处理输入变化
+  const handleInputChange = (name: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [name]: value,
+    }));
+    setError('');
   };
 
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}>
+      {/* 头部标题 */}
       <View style={styles.header}>
         <Text style={styles.title}>
           {isRegistering ? '创建账号' : '欢迎回来'}
@@ -85,12 +125,14 @@ export default function AuthScreen({onLoginSuccess}: Props) {
         </Text>
       </View>
 
+      {/* 错误提示 */}
       {!!error && (
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{error}</Text>
         </View>
       )}
 
+      {/* 表单区域 */}
       <View style={styles.form}>
         {isRegistering && (
           <View style={styles.inputContainer}>
@@ -98,11 +140,12 @@ export default function AuthScreen({onLoginSuccess}: Props) {
             <TextInput
               placeholder="电子邮箱"
               placeholderTextColor="#999"
-              value={email}
-              onChangeText={setEmail}
+              value={formData.email}
+              onChangeText={text => handleInputChange('email', text)}
               style={styles.input}
               autoCapitalize="none"
               keyboardType="email-address"
+              autoCorrect={false}
             />
           </View>
         )}
@@ -112,10 +155,11 @@ export default function AuthScreen({onLoginSuccess}: Props) {
           <TextInput
             placeholder="用户名"
             placeholderTextColor="#999"
-            value={username}
-            onChangeText={setUsername}
+            value={formData.username}
+            onChangeText={text => handleInputChange('username', text)}
             style={styles.input}
             autoCapitalize="none"
+            autoCorrect={false}
           />
         </View>
 
@@ -124,8 +168,8 @@ export default function AuthScreen({onLoginSuccess}: Props) {
           <TextInput
             placeholder="密码"
             placeholderTextColor="#999"
-            value={password}
-            onChangeText={setPassword}
+            value={formData.password}
+            onChangeText={text => handleInputChange('password', text)}
             style={styles.input}
             secureTextEntry
           />
@@ -142,8 +186,8 @@ export default function AuthScreen({onLoginSuccess}: Props) {
             <TextInput
               placeholder="确认密码"
               placeholderTextColor="#999"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
+              value={formData.confirmPassword}
+              onChangeText={text => handleInputChange('confirmPassword', text)}
               style={styles.input}
               secureTextEntry
             />
@@ -151,7 +195,7 @@ export default function AuthScreen({onLoginSuccess}: Props) {
         )}
 
         <TouchableOpacity
-          style={styles.button}
+          style={[styles.button, loading && styles.disabledButton]}
           onPress={handleSubmit}
           disabled={loading}>
           {loading ? (
@@ -164,11 +208,16 @@ export default function AuthScreen({onLoginSuccess}: Props) {
         </TouchableOpacity>
       </View>
 
+      {/* 底部切换链接 */}
       <View style={styles.footer}>
         <Text style={styles.footerText}>
           {isRegistering ? '已有账号？' : '还没有账号？'}
         </Text>
-        <TouchableOpacity onPress={() => setIsRegistering(!isRegistering)}>
+        <TouchableOpacity
+          onPress={() => {
+            setIsRegistering(!isRegistering);
+            setError('');
+          }}>
           <Text style={styles.link}>
             {isRegistering ? '立即登录' : '立即注册'}
           </Text>
@@ -224,6 +273,7 @@ const styles = StyleSheet.create({
     height: 56,
     fontSize: 16,
     color: '#2D3436',
+    paddingVertical: Platform.OS === 'ios' ? 8 : 0,
   },
   button: {
     height: 56,
@@ -268,5 +318,8 @@ const styles = StyleSheet.create({
     color: '#FF5252',
     fontSize: 14,
     textAlign: 'center',
+  },
+  disabledButton: {
+    opacity: 0.7,
   },
 });
