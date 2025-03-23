@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -7,22 +7,30 @@ import {
   StyleSheet,
 } from 'react-native';
 
+type Tag = {
+  label: string;
+  value: string;
+  hasNew?: boolean; // 添加NEW标记属性
+};
+
 interface TagSelectorProps {
-  tags: string[];
+  tags: Tag[];
   onSelect: (selected: string) => void;
 }
 
 export default function TagSelector({tags, onSelect}: TagSelectorProps) {
-  const [selectedTag, setSelectedTag] = useState<string>('');
+  const [selectedTag, setSelectedTag] = useState<string>(tags[0]?.value || '');
 
-  const handlePress = (tag: string) => {
-    // 当点击已选中的标签时不做任何改变
-    if (tag === selectedTag) {
-      return;
+  useEffect(() => {
+    if (tags.length > 0) {
+      onSelect(tags[0].value);
     }
+  }, [onSelect, tags]);
 
-    setSelectedTag(tag);
-    onSelect(tag);
+  const handlePress = (tag: Tag) => {
+    if (tag.value === selectedTag) return;
+    setSelectedTag(tag.value);
+    onSelect(tag.value);
   };
 
   return (
@@ -32,25 +40,24 @@ export default function TagSelector({tags, onSelect}: TagSelectorProps) {
       contentContainerStyle={styles.container}>
       {tags.map(tag => (
         <TouchableOpacity
-          key={tag}
-          style={[styles.tag, selectedTag === tag && styles.selectedTag]}
+          key={tag.value}
+          style={[styles.tag, selectedTag === tag.value && styles.selectedTag]}
           onPress={() => handlePress(tag)}>
-          {/* 标签内容显示 */}
           <View style={styles.tagContent}>
-            {/* 风格标签图标 */}
-            {tag.startsWith('通用') && <UniversalIcon />}
-            {tag.startsWith('人像') && <PortraitIcon />}
-            <Text style={styles.tagText}>{tag.replace(/\.\d+$/, '')}</Text>
+            {/* 根据标签类型显示图标 */}
+            {tag.label.startsWith('通用') && <UniversalIcon />}
+            {tag.label.startsWith('人像') && <PortraitIcon />}
+            <Text style={styles.tagText}>
+              {tag.label.replace(/\.\d+$/, '')}
+            </Text>
           </View>
-
-          {/* NEW角标 */}
-          {tag.includes('NEW') && <View style={styles.newBadge} />}
+          {/* NEW标记 */}
+          {tag.hasNew && <View style={styles.newBadge} />}
         </TouchableOpacity>
       ))}
     </ScrollView>
   );
 }
-
 // 图标组件示例
 const UniversalIcon = () => (
   <View style={styles.icon}>

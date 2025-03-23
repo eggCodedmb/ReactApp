@@ -5,7 +5,7 @@ import axios, {
   InternalAxiosRequestConfig,
 } from 'axios';
 
-const BASE_API = 'http://localhost:3000';
+const BASE_API = '/api'; // 基础地址
 
 class HttpClient {
   private service: AxiosInstance;

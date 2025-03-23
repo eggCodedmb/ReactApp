@@ -14,10 +14,22 @@ export default function CreationScreen() {
   const [description, setDescription] = useState('');
   const [selectedStyle, setSelectedStyle] = useState('');
   const [selectedSize, setSelectedSize] = useState('');
+  console.log('selectedStyle:', selectedStyle);
+  console.log('selectedSize:', selectedSize);
 
-  const styleTags = ['通用6.0', '人像5.2', '3D动漫', '彩绘日漫'];
-  const sizeTags = ['3:4', '4:3', '1:1', '9:16', '16:9'];
-
+  const styleTags = [
+    {label: '通用6.0', value: 'sd15'},
+    {label: '人像5.2', value: 'sd16'},
+    {label: '3D动漫', value: 'sd17'},
+    {label: '彩绘日漫', value: 'sd18'},
+  ];
+  const sizeTags = [
+    {label: '3:4', value: '500x600'},
+    {label: '4:3', value: '600x500'},
+    {label: '1:1', value: '700x700'},
+    {label: '9:16', value: '600x900'},
+    {label: '16:9', value: '900x600'},
+  ];
   return (
     <View style={styles.container}>
       <Header onBack={() => console.log('Back')} />
