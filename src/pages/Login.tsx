@@ -13,8 +13,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import {login, register} from '../api/login'; // 新增注册接口
-
+import {login, register} from '../api/login';
 interface Props {
   onLoginSuccess: () => void;
 }
