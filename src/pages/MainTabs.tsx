@@ -4,6 +4,7 @@ import CreationDraw from '../pages/CreationDraw';
 import Profile from '../pages/Profile';
 import CustomTabBar from '../components/CustomTabBar';
 import {BottomTabBarProps} from '@react-navigation/bottom-tabs';
+import Settings from './Setting';
 
 export type RootStackParamList = {
   Auth: undefined;
@@ -14,6 +15,7 @@ export type TabParamList = {
   Home: undefined;
   Creation: undefined;
   Profile: undefined;
+  Settings: undefined;
 };
 
 const Tab = createBottomTabNavigator<TabParamList>();
@@ -32,6 +34,11 @@ export default function Main() {
       <Tab.Screen
         name="Profile"
         component={Profile}
+        options={{headerShown: false}}
+      />
+      <Tab.Screen
+        name="Settings"
+        component={Settings}
         options={{headerShown: false}}
       />
     </Tab.Navigator>
