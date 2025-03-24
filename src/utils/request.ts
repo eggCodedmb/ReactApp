@@ -185,6 +185,26 @@ class HttpClient {
       .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(data[key])}`)
       .join('&');
   }
+
+  // 文件上传
+  public postFile(
+    url: string,
+    data: any,
+    config: AxiosRequestConfig = {},
+  ): Promise<any> {
+    const formData = new FormData();
+    // 将data对象转换为FormData对象
+    Object.keys(data).forEach(key => {
+      formData.append(key, data[key]);
+    });
+    // 发送POST请求
+    return this.service.post(url, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      ...config,
+    });
+  }
 }
 
 // 创建实例

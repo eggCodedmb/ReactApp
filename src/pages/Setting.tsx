@@ -14,6 +14,7 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import ImagePicker from 'react-native-image-crop-picker';
 import Storage from '../utils/storage';
 import {IUser} from '../types/user';
+import {uploadFile} from '../api/upload';
 
 interface SettingsProps {
   navigation: any;
@@ -34,12 +35,11 @@ const Settings = ({navigation}: SettingsProps) => {
       try {
         const userData = await Storage.get('user');
         if (userData) {
-          const parsedUser = JSON.parse(userData);
-          setUser(parsedUser);
+          setUser(userData);
           setFormData({
-            nickname: parsedUser.nickname,
-            email: parsedUser.email,
-            avatar: parsedUser.avatar,
+            nickname: userData.nickname,
+            email: userData.email,
+            avatar: userData.avatar,
           });
         }
       } finally {
@@ -69,16 +69,20 @@ const Settings = ({navigation}: SettingsProps) => {
   const handleAvatarUpdate = async () => {
     try {
       const image = await ImagePicker.openPicker({
-        width: 300,
-        height: 300,
+        width: 400,
+        height: 400,
         cropping: true,
         mediaType: 'photo',
       });
 
+      console.log(image);
+
+      const res = await uploadFile(image.path);
+      console.log(res);
+
       setFormData(prev => ({...prev, avatar: image.path}));
-      // 实际项目中此处应调用更新头像的API
     } catch (error) {
-      console.log('图片选择取消');
+      console.log(error);
     }
   };
 
