@@ -78,7 +78,6 @@ class HttpClient {
     } else {
       config.headers['Content-Type'] = 'application/json';
     }
-
     // 请求计时开始
     (config as any).metadata = {startTime: new Date()};
     return config;
@@ -102,19 +101,23 @@ class HttpClient {
     if (response.config.responseType === 'blob') {
       return response.data;
     }
-
     // 根据业务状态码处理
     const data = response.data;
-    if (data.code === 0) {
+
+    if (data.code === 0 || data.code === 200) {
       return data;
     } else {
-      this.handleBusinessError(data, data.message);
-      return Promise.reject(new Error(data.message));
+      this.handleBusinessError(
+        data.code || response.status,
+        data.message || response.statusText,
+      );
+      return Promise.reject(new Error(data.message || response.statusText));
     }
   };
 
   // 响应错误处理
   private handleResponseError = (error: any): Promise<any> => {
+    console.log(error);
     const code = error.response?.data?.code || 500;
     switch (code) {
       case 10401:
@@ -130,7 +133,7 @@ class HttpClient {
         // 处理其他错误
         break;
     }
-    return Promise.reject(error.response.data);
+    return Promise.reject(error.response.data || error.response);
   };
 
   // 处理业务错误
@@ -189,18 +192,12 @@ class HttpClient {
   // 文件上传
   public postFile(
     url: string,
-    data: any,
+    formData: any,
     config: AxiosRequestConfig = {},
   ): Promise<any> {
-    const formData = new FormData();
-    // 将data对象转换为FormData对象
-    Object.keys(data).forEach(key => {
-      formData.append(key, data[key]);
-    });
-    // 发送POST请求
     return this.service.post(url, formData, {
       headers: {
-        'Content-Type': 'multipart/form-data',
+        'Content-Type': 'form-data',
       },
       ...config,
     });

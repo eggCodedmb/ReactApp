@@ -114,7 +114,10 @@ const Profile = ({navigation}: {navigation: any}) => {
         {/* 头像区域 */}
         <View style={styles.avatarContainer}>
           {user.avatar ? (
-            <Image source={{uri: user.avatar}} style={styles.avatar} />
+            <Image
+              source={{uri: `http://192.168.1.114:3000${user.avatar}`}}
+              style={styles.avatar}
+            />
           ) : (
             <View style={styles.avatarPlaceholder}>
               <Icon name="account-circle" size={100} color="#7B61FF" />

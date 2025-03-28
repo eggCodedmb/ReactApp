@@ -15,6 +15,7 @@ import ImagePicker from 'react-native-image-crop-picker';
 import Storage from '../utils/storage';
 import {IUser} from '../types/user';
 import {uploadFile} from '../api/upload';
+import {updateUser, me} from '../api/user';
 
 interface SettingsProps {
   navigation: any;
@@ -75,38 +76,38 @@ const Settings = ({navigation}: SettingsProps) => {
         mediaType: 'photo',
       });
 
-      console.log(image);
-
-      const res = await uploadFile(image.path);
-      console.log(res);
-
-      setFormData(prev => ({...prev, avatar: image.path}));
+      const file = {
+        uri: image.path,
+        name: image.filename,
+        type: image.mime,
+        size: image.size,
+      };
+      const fileFormData = new FormData();
+      fileFormData.append('file', file);
+      const res = await uploadFile(fileFormData);
+      if (res.code === 0) {
+        setFormData(prev => ({...prev, avatar: res.result[0].url}));
+        handleSave();
+      } else {
+        console.log(res);
+      }
     } catch (error) {
-      console.log(error);
+      console.log('err', error);
     }
   };
 
   const handleSave = async () => {
-    if (!formData.nickname.trim()) {
-      Alert.alert('提示', '昵称不能为空');
-      return;
-    }
-
     try {
-      // 模拟API调用
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      const updatedUser = {
-        ...user,
-        ...formData,
-      } as IUser;
-
-      await Storage.set('user', JSON.stringify(updatedUser));
-      setUser(updatedUser);
-      setEditMode(false);
-      Alert.alert('修改成功');
+      const res = await updateUser(formData);
+      if (res.code === 0 || res === 200) {
+        const {result, code} = await me();
+        if (code === 0 || code === 200) {
+          await Storage.set('user', {...result.user, ...result.vip});
+        }
+        setEditMode(false);
+      }
     } catch (error) {
-      Alert.alert('错误', '保存失败，请重试');
+      console.log(error);
     }
   };
 
@@ -124,7 +125,10 @@ const Settings = ({navigation}: SettingsProps) => {
       <View style={styles.avatarSection}>
         <TouchableOpacity onPress={handleAvatarUpdate}>
           {formData.avatar ? (
-            <Image source={{uri: formData.avatar}} style={styles.avatar} />
+            <Image
+              source={{uri: `http://192.168.1.114:3000${formData.avatar}`}}
+              style={styles.avatar}
+            />
           ) : (
             <View style={styles.avatarPlaceholder}>
               <Icon name="camera-alt" size={32} color="#7B61FF" />

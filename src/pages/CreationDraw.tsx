@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -6,21 +6,23 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import Header from '../components/Header';
 import TagSelector from '../components/TagSelector';
+import {getModels, txtToimg, getProgress} from '../api/sdApi';
 
-export default function CreationScreen() {
+export default function CreationScreen({navigation}) {
   const [description, setDescription] = useState('');
-  const [selectedStyle, setSelectedStyle] = useState('');
+  const [selectedModel, setSelectedModel] = useState('');
   const [selectedSize, setSelectedSize] = useState('');
+  const [modelsList, setModelsList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const [progress, setProgress] = useState(0);
 
-  const styleTags = [
-    {label: '通用6.0', value: 'sd15'},
-    {label: '人像5.2', value: 'sd16'},
-    {label: '3D动漫', value: 'sd17'},
-    {label: '彩绘日漫', value: 'sd18'},
-  ];
+  // 尺寸选项
   const sizeTags = [
     {label: '3:4', value: '500x600'},
     {label: '4:3', value: '600x500'},
@@ -28,9 +30,76 @@ export default function CreationScreen() {
     {label: '9:16', value: '600x900'},
     {label: '16:9', value: '900x600'},
   ];
+
+  // 加载模型列表
+  useEffect(() => {
+    const loadModels = async () => {
+      try {
+        const res = await getModels();
+        // 转换数据结构适配选择器
+        const formattedModels = res.result.map(model => ({
+          label: model.name,
+          value: model.id,
+        }));
+        setModelsList(formattedModels);
+      } catch (error) {
+        Alert.alert('加载失败', '无法获取模型列表');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadModels();
+  }, []);
+
+  // 处理生成请求
+  const handleGenerate = async () => {
+    if (!description.trim()) {
+      Alert.alert('提示', '请输入描述内容');
+      return;
+    }
+
+    try {
+      setGenerating(true);
+
+      // 启动生成任务
+      const taskId = await txtToimg({
+        prompt: description,
+        model: selectedModel,
+        size: selectedSize,
+      });
+
+      // 轮询进度
+      const interval = setInterval(async () => {
+        const progressData = await getProgress(taskId);
+        setProgress(progressData.percentage);
+
+        if (progressData.status === 'completed') {
+          clearInterval(interval);
+          navigation.navigate('Result', {image: progressData.result});
+        }
+      }, 2000);
+    } catch (error) {
+      Alert.alert('生成失败', error.message);
+    } finally {
+      setGenerating(false);
+      setProgress(0);
+    }
+  };
+
+  // 加载状态显示
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#7B61FF" />
+        <Text style={styles.loadingText}>加载模型中...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      <Header onBack={() => console.log('Back')} />
+      <Header onBack={() => navigation.goBack()} />
 
       <ScrollView contentContainerStyle={styles.content}>
         {/* 描述词输入区域 */}
@@ -53,12 +122,12 @@ export default function CreationScreen() {
           <Text style={styles.counter}>{description.length}/300</Text>
         </View>
 
-        {/* 风格选择 */}
+        {/* 模型选择 */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>选择风格</Text>
+          <Text style={styles.sectionTitle}>选择模型</Text>
           <TagSelector
-            tags={styleTags}
-            onSelect={selected => setSelectedStyle(selected[0])}
+            tags={modelsList}
+            onSelect={selected => setSelectedModel(selected[0])}
           />
         </View>
 
@@ -72,8 +141,18 @@ export default function CreationScreen() {
         </View>
 
         {/* 生成按钮 */}
-        <TouchableOpacity style={styles.generateButton}>
-          <Text style={styles.generateText}>立即生成</Text>
+        <TouchableOpacity
+          style={[styles.generateButton, generating && styles.disabledButton]}
+          onPress={handleGenerate}
+          disabled={generating}>
+          {generating ? (
+            <View style={styles.progressContainer}>
+              <ActivityIndicator color="#FFF" />
+              <Text style={styles.progressText}>生成中... {progress}%</Text>
+            </View>
+          ) : (
+            <Text style={styles.generateText}>立即生成</Text>
+          )}
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -144,5 +223,27 @@ const styles = StyleSheet.create({
     color: '#FFFFFFAA',
     fontSize: 12,
     marginTop: 6,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+  },
+  loadingText: {
+    marginTop: 16,
+    color: '#666',
+  },
+  disabledButton: {
+    backgroundColor: '#A89FFF',
+  },
+  progressContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  progressText: {
+    color: '#FFF',
+    fontSize: 14,
   },
 });
