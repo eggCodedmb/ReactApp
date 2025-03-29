@@ -1,3 +1,6 @@
 {
   "extends": "@react-native/typescript-config/tsconfig.json"
 }
+
+
+// keytool -genkeypair -v -storetype PKCS12 -keystore D:/Project/ReactApp/android/app/my-release-key.keystore -alias my-key-alias -keyalg RSA -keysize 2048 -validity 10000

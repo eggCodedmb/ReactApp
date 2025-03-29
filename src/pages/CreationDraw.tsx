@@ -12,6 +12,18 @@ import {
 import Header from '../components/Header';
 import TagSelector from '../components/TagSelector';
 import {getModels, txtToimg, getProgress} from '../api/sdApi';
+import {randomId} from '../utils/randomId';
+
+type progress = {
+  active: boolean;
+  queued: boolean;
+  completed: boolean;
+  progress: number;
+  eta: string;
+  live_preview: string;
+  id_live_preview: number;
+  textinfo: string;
+};
 
 export default function CreationScreen({navigation}) {
   const [description, setDescription] = useState('');
@@ -37,10 +49,13 @@ export default function CreationScreen({navigation}) {
       try {
         const res = await getModels();
         // 转换数据结构适配选择器
-        const formattedModels = res.result.map(model => ({
-          label: model.name,
-          value: model.id,
-        }));
+        const formattedModels = res.result.models.map(
+          (model: {model_name: any; title: any}) => ({
+            ...model,
+            label: model.model_name,
+            value: model.title,
+          }),
+        );
         setModelsList(formattedModels);
       } catch (error) {
         Alert.alert('加载失败', '无法获取模型列表');
@@ -50,7 +65,7 @@ export default function CreationScreen({navigation}) {
     };
 
     loadModels();
-  }, []);
+  }, [modelsList]);
 
   // 处理生成请求
   const handleGenerate = async () => {
@@ -61,24 +76,33 @@ export default function CreationScreen({navigation}) {
 
     try {
       setGenerating(true);
+      const newTaskId = randomId();
+      const params = {
+        prompt: description,
+        force_task_id: newTaskId,
+      };
+
+      const params2 = {
+        id_task: newTaskId,
+        id_live_preview: -1,
+      };
 
       // 启动生成任务
-      const taskId = await txtToimg({
-        prompt: description,
-        model: selectedModel,
-        size: selectedSize,
-      });
-
+      const imgResult = await txtToimg(params);
       // 轮询进度
       const interval = setInterval(async () => {
-        const progressData = await getProgress(taskId);
-        setProgress(progressData.percentage);
-
-        if (progressData.status === 'completed') {
-          clearInterval(interval);
-          navigation.navigate('Result', {image: progressData.result});
+        const {result, code} = await getProgress(params2);
+        if (code === 0) {
+          setProgress(result.progress);
+          console.log(result.progress); //进度0-1
+          if (result.active === false) {
+            clearInterval(interval);
+            navigation.navigate('Result', {
+              image: imgResult.result[0],
+            });
+          }
         }
-      }, 2000);
+      }, 1000);
     } catch (error) {
       Alert.alert('生成失败', error.message);
     } finally {
@@ -148,7 +172,9 @@ export default function CreationScreen({navigation}) {
           {generating ? (
             <View style={styles.progressContainer}>
               <ActivityIndicator color="#FFF" />
-              <Text style={styles.progressText}>生成中... {progress}%</Text>
+              <Text style={styles.progressText}>
+                生成中... {Math.round(progress * 100)}%
+              </Text>
             </View>
           ) : (
             <Text style={styles.generateText}>立即生成</Text>
