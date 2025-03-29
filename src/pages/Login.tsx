@@ -96,7 +96,7 @@ export default function Login() {
         }
       }
     } catch (err) {
-      setError((err as Error).message || '网络请求失败');
+      setError(err.message);
     } finally {
       setLoading(false);
     }
