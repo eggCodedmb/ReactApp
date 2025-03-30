@@ -74,7 +74,7 @@ const getLabel = (routeName: string) => {
       return '首页';
     case 'Creation':
       return 'AI创作';
-    case 'Profile':
+    case 'User':
       return '我的';
     default:
       return '';
@@ -86,7 +86,7 @@ const getIconName = (routeName: string) => {
   switch (routeName) {
     case 'Home':
       return 'home';
-    case 'Profile':
+    case 'User':
       return 'person';
     default:
       return '';

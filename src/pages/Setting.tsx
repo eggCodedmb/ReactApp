@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   TextInput,
   Image,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
@@ -16,55 +15,54 @@ import Storage from '../utils/storage';
 import {IUser} from '../types/user';
 import {uploadFile} from '../api/upload';
 import {updateUser, me} from '../api/user';
-
+import {useDialog} from '../components/CustomDialog';
+import {useToast} from '../components/Toast';
 interface SettingsProps {
   navigation: any;
 }
 
 const Settings = ({navigation}: SettingsProps) => {
-  const [user, setUser] = useState<IUser | null>(null);
+  const {showDialog} = useDialog();
+  const toast = useToast();
+  const [user, setUser] = useState({} as IUser);
   const [editMode, setEditMode] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [formData, setFormData] = useState({
-    nickname: '',
-    email: '',
-    avatar: '',
-  });
-
   useEffect(() => {
     const loadUserData = async () => {
       try {
         const userData = await Storage.get('user');
         if (userData) {
           setUser(userData);
-          setFormData({
-            nickname: userData.nickname,
-            email: userData.email,
-            avatar: userData.avatar,
-          });
         }
       } finally {
         setLoading(false);
       }
     };
-
     loadUserData();
   }, []);
 
   const handleLogout = () => {
-    Alert.alert('确认退出', '确定要退出登录吗？', [
-      {text: '取消', style: 'cancel'},
-      {
-        text: '确定',
-        onPress: async () => {
-          await Storage.remove('user');
-          navigation.reset({
-            index: 0,
-            routes: [{name: 'Auth'}],
-          });
+    showDialog({
+      title: '确认退出',
+      content: '确定要退出登录吗？',
+      buttons: [
+        {
+          text: '取消',
+          textStyle: {color: '#666'},
         },
-      },
-    ]);
+        {
+          text: '确定',
+          onPress: async () => {
+            await Storage.clearAll();
+            navigation.reset({
+              index: 0,
+              routes: [{name: 'Auth'}],
+            });
+          },
+          textStyle: {color: '#f44336'},
+        },
+      ],
+    });
   };
 
   const handleAvatarUpdate = async () => {
@@ -85,29 +83,40 @@ const Settings = ({navigation}: SettingsProps) => {
       const fileFormData = new FormData();
       fileFormData.append('file', file);
       const res = await uploadFile(fileFormData);
+      console.log(res);
       if (res.code === 0) {
-        setFormData(prev => ({...prev, avatar: res.result[0].url}));
-        handleSave();
+        setUser(prev => ({...prev, avatar: res.result[0].url}));
+        await handleSave();
       } else {
-        console.log(res);
+        toast.show('error', {message: res.message});
       }
     } catch (error) {
-      console.log('err', error);
+      toast.show('error', {message: error.message});
     }
   };
 
   const handleSave = async () => {
     try {
-      const res = await updateUser(formData);
+      const params = {
+        nickname: user.nickname,
+        email: user.email,
+        avatar: user.avatar,
+      };
+      console.log(params);
+      const res = await updateUser(params);
+
       if (res.code === 0 || res === 200) {
         const {result, code} = await me();
         if (code === 0 || code === 200) {
+          toast.show('success', {message: res.message});
           await Storage.set('user', {...result.user, ...result.vip});
+        } else {
+          toast.show('error', {message: res.message});
         }
         setEditMode(false);
       }
     } catch (error) {
-      console.log(error);
+      toast.show('error', {message: error.message});
     }
   };
 
@@ -124,9 +133,9 @@ const Settings = ({navigation}: SettingsProps) => {
       {/* 头像编辑 */}
       <View style={styles.avatarSection}>
         <TouchableOpacity onPress={handleAvatarUpdate}>
-          {formData.avatar ? (
+          {user.avatar ? (
             <Image
-              source={{uri: `http://192.168.1.114:3000${formData.avatar}`}}
+              source={{uri: `http://192.168.1.114:3000${user.avatar}`}}
               style={styles.avatar}
             />
           ) : (
@@ -144,10 +153,8 @@ const Settings = ({navigation}: SettingsProps) => {
           <Text style={styles.inputLabel}>昵称</Text>
           <TextInput
             style={styles.input}
-            value={formData.nickname}
-            onChangeText={text =>
-              setFormData(prev => ({...prev, nickname: text}))
-            }
+            value={user.nickname}
+            onChangeText={text => setUser(prev => ({...prev, nickname: text}))}
             editable={editMode}
           />
         </View>
@@ -156,8 +163,8 @@ const Settings = ({navigation}: SettingsProps) => {
           <Text style={styles.inputLabel}>电子邮箱</Text>
           <TextInput
             style={styles.input}
-            value={formData.email}
-            onChangeText={text => setFormData(prev => ({...prev, email: text}))}
+            value={user.email}
+            onChangeText={text => setUser(prev => ({...prev, email: text}))}
             editable={editMode}
             keyboardType="email-address"
           />

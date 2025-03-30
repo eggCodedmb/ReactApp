@@ -8,16 +8,17 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import {login, register} from '../api/login';
 import {useRoute, RouteProp} from '@react-navigation/native';
 import storage from '../utils/storage';
+import {useToast} from '../components/Toast';
 export default function Login() {
   type LoginRouteParams = {
     onLoginSuccess?: () => void;
   };
+  const toast = useToast();
   const route = useRoute<RouteProp<{params: LoginRouteParams}, 'params'>>();
   const [isRegistering, setIsRegistering] = useState(false);
   const [formData, setFormData] = useState({
@@ -63,22 +64,16 @@ export default function Login() {
       if (isRegistering) {
         const res = await register(formData);
         if (res.code === 0) {
-          Alert.alert('注册成功', '请使用新账号登录', [
-            {
-              text: '确定',
-              onPress: () => {
-                setIsRegistering(false);
-                setFormData(prev => ({
-                  ...prev,
-                  password: '',
-                  confirmPassword: '',
-                  email: '',
-                }));
-              },
-            },
-          ]);
+          toast.show('success', {message: res.message});
+          setIsRegistering(false);
+          setFormData(prev => ({
+            ...prev,
+            password: '',
+            confirmPassword: '',
+            email: '',
+          }));
         } else {
-          setError(res.message || '注册失败');
+          toast.show('error', {message: res.message});
         }
       } else {
         const res = await login({
@@ -87,16 +82,17 @@ export default function Login() {
         });
 
         if (res.code === 0) {
+          toast.show('success', {message: res.message});
           await storage.set('token', res.result.token);
           const user = {...res.result.user};
           await storage.set('user', {...user});
           onLoginSuccess?.();
         } else {
-          setError(res.message || '登录失败');
+          toast.show('error', {message: res.message});
         }
       }
     } catch (err) {
-      setError(err.message);
+      toast.show('error', {message: err.message});
     } finally {
       setLoading(false);
     }

@@ -18,8 +18,9 @@ interface MyAxiosResponse<T = any> extends AxiosResponse<T> {
 }
 
 interface IError {
-  code: number | string;
+  code: number;
   message: string;
+  result: AxiosResponse;
 }
 
 class HttpClient {
@@ -127,10 +128,6 @@ class HttpClient {
       error.message = '网络错误';
     }
 
-    const err: IError = {
-      code: error.response?.data?.code || 500,
-      message: error.response?.data.message || error.message,
-    };
     switch (code) {
       case 10401:
         this.deleteToken();
@@ -142,9 +139,15 @@ class HttpClient {
         // 处理接口不存在
         break;
       default:
-        // error.response = response;
         break;
     }
+    const err: IError = {
+      code: error.response?.data?.code || 500,
+      message: error.response?.data.message || error.message,
+      result: error.response,
+    };
+    console.log(err);
+
     return Promise.reject(err);
   };
 
