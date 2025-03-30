@@ -7,40 +7,48 @@ import {
   ScrollView,
   StyleSheet,
   ActivityIndicator,
-  Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import Header from '../components/Header';
 import TagSelector from '../components/TagSelector';
-import {getModels, txtToimg, getProgress} from '../api/sdApi';
+import {getModels, txtToimg} from '../api/sdApi';
 import {randomId} from '../utils/randomId';
+import {useDialog} from '../components/CustomDialog';
+import {useToast} from '../components/Toast';
 
-type progress = {
-  active: boolean;
-  queued: boolean;
-  completed: boolean;
-  progress: number;
-  eta: string;
-  live_preview: string;
-  id_live_preview: number;
-  textinfo: string;
+// 类型定义
+type SizeTag = {
+  label: string;
+  value: WH;
+};
+
+type WH = {
+  width: number;
+  height: number;
+};
+
+type Model = {
+  model_name: string;
+  title: string;
 };
 
 export default function CreationScreen({navigation}) {
+  const {showDialog} = useDialog();
+  const toast = useToast();
   const [description, setDescription] = useState('');
-  const [selectedModel, setSelectedModel] = useState('');
-  const [selectedSize, setSelectedSize] = useState('');
-  const [modelsList, setModelsList] = useState([]);
+  const [selectedModel, setSelectedModel] = useState<string>('');
+  const [selectedSize, setSelectedSize] = useState<WH | null>(null);
+  const [modelsList, setModelsList] = useState<Model[]>([]);
   const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
-  const [progress, setProgress] = useState(0);
 
-  // 尺寸选项
-  const sizeTags = [
-    {label: '3:4', value: '500x600'},
-    {label: '4:3', value: '600x500'},
-    {label: '1:1', value: '700x700'},
-    {label: '9:16', value: '600x900'},
-    {label: '16:9', value: '900x600'},
+  // 尺寸选项配置
+  const SIZE_TAGS: SizeTag[] = [
+    {label: '3:4', value: {width: 500, height: 667}},
+    {label: '4:3', value: {width: 667, height: 500}},
+    {label: '1:1', value: {width: 700, height: 700}},
+    {label: '9:16', value: {width: 600, height: 900}},
+    {label: '16:9', value: {width: 900, height: 600}},
   ];
 
   // 加载模型列表
@@ -48,70 +56,65 @@ export default function CreationScreen({navigation}) {
     const loadModels = async () => {
       try {
         const res = await getModels();
-        // 转换数据结构适配选择器
-        const formattedModels = res.result.models.map(
-          (model: {model_name: any; title: any}) => ({
-            ...model,
-            label: model.model_name,
-            value: model.title,
-          }),
-        );
-        setModelsList(formattedModels);
+        setModelsList(res.result.models);
       } catch (error) {
-        Alert.alert('加载失败', '无法获取模型列表');
+        toast.show('error', {message: '模型加载失败，请稍后重试'});
+        setModelsList([]);
       } finally {
         setLoading(false);
       }
     };
-
     loadModels();
-  }, [modelsList]);
+  }, []);
 
   // 处理生成请求
   const handleGenerate = async () => {
-    if (!description.trim()) {
-      Alert.alert('提示', '请输入描述内容');
-      return;
-    }
+    if (!validateInput()) return;
 
     try {
-      setGenerating(true);
-      const newTaskId = randomId();
+      const taskId = randomId();
+      const sizeString = selectedSize
+        ? `${selectedSize.width}x${selectedSize.height}`
+        : '';
+
       const params = {
         prompt: description,
-        force_task_id: newTaskId,
+        model: selectedModel,
+        size: sizeString,
+        force_task_id: taskId,
       };
 
-      const params2 = {
-        id_task: newTaskId,
-        id_live_preview: -1,
-      };
-
-      // 启动生成任务
-      const imgResult = await txtToimg(params);
-      // 轮询进度
-      const interval = setInterval(async () => {
-        const {result, code} = await getProgress(params2);
-        if (code === 0) {
-          setProgress(result.progress);
-          console.log(result.progress); //进度0-1
-          if (result.active === false) {
-            clearInterval(interval);
-            navigation.navigate('Result', {
-              image: imgResult.result[0],
-            });
-          }
-        }
-      }, 1000);
+      const {result} = await txtToimg(params);
+      navigation.navigate('Progress', {
+        taskId,
+        initialImage: result.previewUrl || '',
+      });
     } catch (error) {
-      Alert.alert('生成失败', error.message);
-    } finally {
-      setGenerating(false);
-      setProgress(0);
+      toast.show('error', {message: error.message || '生成请求失败'});
     }
   };
 
-  // 加载状态显示
+  // 输入验证
+  const validateInput = () => {
+    if (!description.trim()) {
+      showDialog({
+        title: '提示',
+        content: '请输入描述内容',
+        buttons: [{text: '确定'}],
+      });
+      return false;
+    }
+    if (!selectedModel) {
+      toast.show('info', {message: '请选择模型'});
+      return false;
+    }
+    if (!selectedSize) {
+      toast.show('info', {message: '请选择生成尺寸'});
+      return false;
+    }
+    return true;
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -122,114 +125,108 @@ export default function CreationScreen({navigation}) {
   }
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.container}>
       <Header onBack={() => navigation.goBack()} />
 
-      <ScrollView contentContainerStyle={styles.content}>
-        {/* 描述词输入区域 */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>输入描述词</Text>
-            <TouchableOpacity style={styles.polishButton}>
-              <Text style={styles.polishText}>描述词润色</Text>
-            </TouchableOpacity>
-          </View>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled">
+        {/* 输入区域 */}
+        <Section title="输入描述词">
           <TextInput
             multiline
-            placeholder="如：粉色银睛白色半长发二次元少女，露肩服装"
-            placeholderTextColor="#999999"
+            placeholder="例：粉色银睛白色半长发二次元少女，露肩服装"
+            placeholderTextColor="#999"
             style={styles.input}
             value={description}
             onChangeText={setDescription}
             maxLength={300}
           />
           <Text style={styles.counter}>{description.length}/300</Text>
-        </View>
+        </Section>
 
         {/* 模型选择 */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>选择模型</Text>
+        <Section title="选择模型">
           <TagSelector
-            tags={modelsList}
-            onSelect={selected => setSelectedModel(selected[0])}
+            tags={modelsList.map(model => ({
+              label: model.model_name,
+              value: model.title,
+            }))}
+            selectedValue={selectedModel}
+            onSelect={setSelectedModel}
           />
-        </View>
+        </Section>
 
         {/* 尺寸选择 */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>选择尺寸</Text>
+        <Section title="选择尺寸">
           <TagSelector
-            tags={sizeTags}
-            onSelect={selected => setSelectedSize(selected[0])}
+            tags={SIZE_TAGS}
+            selectedValue={selectedSize}
+            onSelect={setSelectedSize}
+            valueToString={(value: WH | null) =>
+              value ? `${value.width}x${value.height}` : ''
+            }
           />
-        </View>
+          {selectedSize && (
+            <Text style={styles.selectedSizeText}>
+              已选尺寸：{selectedSize.width}x{selectedSize.height}
+            </Text>
+          )}
+        </Section>
 
         {/* 生成按钮 */}
         <TouchableOpacity
-          style={[styles.generateButton, generating && styles.disabledButton]}
-          onPress={handleGenerate}
-          disabled={generating}>
-          {generating ? (
-            <View style={styles.progressContainer}>
-              <ActivityIndicator color="#FFF" />
-              <Text style={styles.progressText}>
-                生成中... {Math.round(progress * 100)}%
-              </Text>
-            </View>
-          ) : (
-            <Text style={styles.generateText}>立即生成</Text>
-          )}
+          style={styles.generateButton}
+          onPress={handleGenerate}>
+          <Text style={styles.generateText}>立即生成</Text>
         </TouchableOpacity>
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
+// 子组件：区域区块
+const Section = ({title, children}) => (
+  <View style={styles.section}>
+    <Text style={styles.sectionTitle}>{title}</Text>
+    {children}
+  </View>
+);
+
+// 样式表
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FFF',
   },
   content: {
     padding: 16,
+    paddingBottom: 40,
   },
   section: {
     marginBottom: 24,
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#333333',
-  },
-  polishButton: {
-    backgroundColor: '#F5F5F5',
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  polishText: {
-    color: '#7B61FF',
-    fontSize: 12,
+    color: '#333',
+    marginBottom: 12,
   },
   input: {
     height: 100,
     borderWidth: 1,
-    borderColor: '#EEEEEE',
+    borderColor: '#EEE',
     borderRadius: 8,
     padding: 12,
     fontSize: 14,
     textAlignVertical: 'top',
-    color: '#333333',
+    color: '#333',
   },
   counter: {
     textAlign: 'right',
-    color: '#999999',
+    color: '#999',
     fontSize: 12,
     marginTop: 8,
   },
@@ -238,38 +235,26 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     padding: 18,
     alignItems: 'center',
-    marginVertical: 24,
+    marginTop: 16,
   },
   generateText: {
-    color: '#FFFFFF',
+    color: '#FFF',
     fontSize: 16,
     fontWeight: '600',
-  },
-  remainingText: {
-    color: '#FFFFFFAA',
-    fontSize: 12,
-    marginTop: 6,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFF',
   },
   loadingText: {
     marginTop: 16,
     color: '#666',
   },
-  disabledButton: {
-    backgroundColor: '#A89FFF',
-  },
-  progressContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  progressText: {
-    color: '#FFF',
-    fontSize: 14,
+  selectedSizeText: {
+    marginTop: 8,
+    color: '#7B61FF',
+    fontSize: 12,
+    textAlign: 'center',
   },
 });

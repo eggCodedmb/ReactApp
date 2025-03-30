@@ -160,14 +160,6 @@ const Profile = ({navigation}: {navigation: any}) => {
           user.startDate || '2023-01-01',
         )}
         {renderInfoCard('star', '当前积分', `${user.points || 0} 分`)}
-
-        {/* 操作按钮 */}
-        <TouchableOpacity
-          style={styles.logoutButton}
-          onPress={handleLogout}
-          activeOpacity={0.8}>
-          <Text style={styles.logoutText}>退出登录</Text>
-        </TouchableOpacity>
       </View>
     </ScrollView>
   );
@@ -279,7 +271,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FFF',
     borderRadius: 12,
-    padding: 16,
+    padding: 10,
     marginBottom: 12,
   },
   cardTextContainer: {

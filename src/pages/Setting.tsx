@@ -49,6 +49,8 @@ const Settings = ({navigation}: SettingsProps) => {
     showDialog({
       title: '确认退出',
       content: '确定要退出登录吗？',
+      dismissOnTouchOutside: false,
+      animationType: 'fade',
       buttons: [
         {
           text: '取消',
@@ -186,11 +188,13 @@ const Settings = ({navigation}: SettingsProps) => {
           <>
             <TouchableOpacity
               style={[styles.button, styles.saveButton]}
-              onPress={handleSave({
-                nickname: user.nickname,
-                email: user.email,
-                avatar: user.avatar,
-              })}>
+              onPress={() =>
+                handleSave({
+                  nickname: user.nickname,
+                  email: user.email,
+                  avatar: user.avatar,
+                })
+              }>
               <Text style={styles.buttonText}>保存修改</Text>
             </TouchableOpacity>
             <TouchableOpacity

@@ -1,64 +1,70 @@
-import React, {useState, useEffect} from 'react';
+import React from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   ScrollView,
   StyleSheet,
+  StyleProp,
+  ViewStyle,
 } from 'react-native';
 
-type Tag = {
+type Tag<T> = {
   label: string;
-  value: string;
-  hasNew?: boolean; // 添加NEW标记属性
+  value: T;
+  hasNew?: boolean;
 };
 
-interface TagSelectorProps {
-  tags: Tag[];
-  onSelect: (selected: string) => void;
+interface TagSelectorProps<T> {
+  tags: Tag<T>[];
+  selectedValue?: T;
+  onSelect: (value: T) => void;
+  valueToString?: (value: T) => string;
+  containerStyle?: StyleProp<ViewStyle>;
+  tagStyle?: StyleProp<ViewStyle>;
 }
 
-export default function TagSelector({tags, onSelect}: TagSelectorProps) {
-  const [selectedTag, setSelectedTag] = useState<string>(tags[0]?.value || '');
-
-  useEffect(() => {
-    if (tags.length > 0) {
-      onSelect(tags[0].value);
-    }
-  }, [onSelect, tags]);
-
-  const handlePress = (tag: Tag) => {
-    if (tag.value === selectedTag) return;
-    setSelectedTag(tag.value);
-    onSelect(tag.value);
-  };
+export default function TagSelector<T>({
+  tags,
+  selectedValue,
+  onSelect,
+  valueToString = String,
+  containerStyle,
+  tagStyle,
+}: TagSelectorProps<T>) {
+  const getValueKey = (value: T) => valueToString(value);
 
   return (
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.container}>
-      {tags.map(tag => (
-        <TouchableOpacity
-          key={tag.value}
-          style={[styles.tag, selectedTag === tag.value && styles.selectedTag]}
-          onPress={() => handlePress(tag)}>
-          <View style={styles.tagContent}>
-            {/* 根据标签类型显示图标 */}
-            {tag.label.startsWith('通用') && <UniversalIcon />}
-            {tag.label.startsWith('人像') && <PortraitIcon />}
-            <Text style={styles.tagText}>
-              {tag.label.replace(/\.\d+$/, '')}
-            </Text>
-          </View>
-          {/* NEW标记 */}
-          {tag.hasNew && <View style={styles.newBadge} />}
-        </TouchableOpacity>
-      ))}
+      contentContainerStyle={[styles.container, containerStyle]}>
+      {tags.map((tag, index) => {
+        const isSelected =
+          getValueKey(tag.value) === getValueKey(selectedValue);
+
+        return (
+          <TouchableOpacity
+            key={index}
+            style={[styles.tag, tagStyle, isSelected && styles.selectedTag]}
+            onPress={() => onSelect(tag.value)}>
+            <View style={styles.tagContent}>
+              {/* 根据标签类型显示图标 */}
+              {tag.label.startsWith('通用') && <UniversalIcon />}
+              {tag.label.startsWith('人像') && <PortraitIcon />}
+              <Text style={styles.tagText}>
+                {tag.label.replace(/\.\d+$/, '')}
+              </Text>
+            </View>
+            {tag.hasNew && <View style={styles.newBadge} />}
+          </TouchableOpacity>
+        );
+      })}
     </ScrollView>
   );
 }
-// 图标组件示例
+
+// 图标组件（可替换为实际图标组件）
 const UniversalIcon = () => (
   <View style={styles.icon}>
     <Text>🎨</Text>
@@ -88,7 +94,6 @@ const styles = StyleSheet.create({
   selectedTag: {
     borderWidth: 2,
     borderColor: '#7B61FF',
-    borderRadius: 20,
   },
   tagText: {
     fontSize: 14,
