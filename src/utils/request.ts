@@ -5,6 +5,7 @@ import axios, {
   InternalAxiosRequestConfig,
 } from 'axios';
 import Storage from './storage';
+import {AppError} from '../types/error';
 const BASE_API = 'http://192.168.1.114:3000/api'; // 基础地址
 
 interface IData {
@@ -122,7 +123,7 @@ class HttpClient {
   };
 
   // 响应错误处理
-  private handleResponseError = (error: any): Promise<IError> => {
+  private handleResponseError = (error: any): Promise<AppError> => {
     const code = error.response?.data?.code || 500;
     if (error.message === 'Network Error') {
       error.message = '网络错误';
@@ -141,13 +142,11 @@ class HttpClient {
       default:
         break;
     }
-    const err: IError = {
+    const err = {
       code: error.response?.data?.code || 500,
       message: error.response?.data.message || error.message,
-      result: error.response,
+      data: error.response,
     };
-    console.log(err);
-
     return Promise.reject(err);
   };
 
@@ -207,10 +206,10 @@ class HttpClient {
   // 文件上传
   public postFile(
     url: string,
-    formData: any,
+    data: any,
     config: AxiosRequestConfig = {},
   ): Promise<any> {
-    return this.service.post(url, formData, {
+    return this.service.post(url, data, {
       headers: {
         'Content-Type': 'form-data',
       },

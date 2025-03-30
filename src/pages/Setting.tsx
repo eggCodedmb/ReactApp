@@ -20,7 +20,11 @@ import {useToast} from '../components/Toast';
 interface SettingsProps {
   navigation: any;
 }
-
+type updateUser = {
+  nickname: string;
+  email: string;
+  avatar: string;
+};
 const Settings = ({navigation}: SettingsProps) => {
   const {showDialog} = useDialog();
   const toast = useToast();
@@ -83,10 +87,14 @@ const Settings = ({navigation}: SettingsProps) => {
       const fileFormData = new FormData();
       fileFormData.append('file', file);
       const res = await uploadFile(fileFormData);
-      console.log(res);
       if (res.code === 0) {
+        const params = {
+          nickname: user.nickname,
+          email: user.email,
+          avatar: res.result[0].url,
+        };
         setUser(prev => ({...prev, avatar: res.result[0].url}));
-        await handleSave();
+        handleSave(params);
       } else {
         toast.show('error', {message: res.message});
       }
@@ -95,16 +103,10 @@ const Settings = ({navigation}: SettingsProps) => {
     }
   };
 
-  const handleSave = async () => {
+  const handleSave = async (params: updateUser) => {
     try {
-      const params = {
-        nickname: user.nickname,
-        email: user.email,
-        avatar: user.avatar,
-      };
       console.log(params);
       const res = await updateUser(params);
-
       if (res.code === 0 || res === 200) {
         const {result, code} = await me();
         if (code === 0 || code === 200) {
@@ -133,10 +135,17 @@ const Settings = ({navigation}: SettingsProps) => {
       {/* 头像编辑 */}
       <View style={styles.avatarSection}>
         <TouchableOpacity onPress={handleAvatarUpdate}>
-          {user.avatar ? (
+          {user.avatar || user.tempAvatar ? (
             <Image
-              source={{uri: `http://192.168.1.114:3000${user.avatar}`}}
+              source={{
+                uri: user.tempAvatar
+                  ? user.tempAvatar
+                  : `http://192.168.1.114:3000${user.avatar}`,
+              }}
               style={styles.avatar}
+              onError={() => {
+                setUser(prev => ({...prev, avatar: ''}));
+              }}
             />
           ) : (
             <View style={styles.avatarPlaceholder}>
@@ -177,7 +186,11 @@ const Settings = ({navigation}: SettingsProps) => {
           <>
             <TouchableOpacity
               style={[styles.button, styles.saveButton]}
-              onPress={handleSave}>
+              onPress={handleSave({
+                nickname: user.nickname,
+                email: user.email,
+                avatar: user.avatar,
+              })}>
               <Text style={styles.buttonText}>保存修改</Text>
             </TouchableOpacity>
             <TouchableOpacity

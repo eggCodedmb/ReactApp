@@ -1,4 +1,3 @@
-// storage.ts
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type StorageKey = 'user' | 'token' | 'settings';
