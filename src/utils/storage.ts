@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-type StorageKey = 'user' | 'token' | 'settings';
+type StorageKey = 'user' | 'token' | 'settings' | any;
 
 const Storage = {
   // 同步获取

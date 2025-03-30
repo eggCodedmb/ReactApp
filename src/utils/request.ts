@@ -221,7 +221,7 @@ class HttpClient {
 // 创建实例
 const service = new HttpClient({
   baseURL: BASE_API,
-  timeout: 3000,
+  timeout: 1000 * 60,
   withCredentials: true,
 });
 

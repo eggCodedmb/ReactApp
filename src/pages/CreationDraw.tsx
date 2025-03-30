@@ -16,7 +16,7 @@ import {getModels, txtToimg} from '../api/sdApi';
 import {randomId} from '../utils/randomId';
 import {useDialog} from '../components/CustomDialog';
 import {useToast} from '../components/Toast';
-
+import Storage from '../utils/storage';
 // 类型定义
 type SizeTag = {
   label: string;
@@ -73,22 +73,22 @@ export default function CreationScreen({navigation}) {
 
     try {
       const taskId = randomId();
-      const sizeString = selectedSize
-        ? `${selectedSize.width}x${selectedSize.height}`
-        : '';
 
       const params = {
         prompt: description,
-        model: selectedModel,
-        size: sizeString,
+        width: selectedSize?.width,
+        height: selectedSize?.height,
         force_task_id: taskId,
       };
 
-      const {result} = await txtToimg(params);
       navigation.navigate('Progress', {
         taskId,
-        initialImage: result.previewUrl || '',
+        initialImage: '',
       });
+      const res = await txtToimg(params);
+      if (res.code === 0) {
+        await Storage.set(taskId, res.result.imgUrls[0]);
+      }
     } catch (error) {
       toast.show('error', {message: error.message || '生成请求失败'});
     }

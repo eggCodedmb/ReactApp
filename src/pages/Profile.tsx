@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 30,
   },
   content: {
-    marginTop: -40,
+    marginTop: -60,
     paddingHorizontal: 20,
   },
   avatarContainer: {

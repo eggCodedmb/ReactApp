@@ -10,7 +10,7 @@ import {
 import Header from '../components/Header';
 import {getProgress} from '../api/sdApi';
 import {useToast} from '../components/Toast';
-
+import Storage from '../utils/storage';
 export default function ProgressScreen({route, navigation}) {
   const {taskId, initialImage} = route.params;
   const [progress, setProgress] = useState(0);
@@ -23,20 +23,29 @@ export default function ProgressScreen({route, navigation}) {
         const {result, code} = await getProgress({
           id_task: taskId,
           id_live_preview: -1,
+          live_preview: true,
         });
 
+        console.log(result);
         if (code === 0) {
-          setProgress(result.progress);
-          if (result.active === false) {
+          if (result.active) {
+            setProgress(result.progress);
+            if (result.completed) {
+            }
+          } else {
+            setTimeout(async () => {
+              const img = await Storage.get(taskId);
+              setResultImage(img);
+            }, 2000);
             clearInterval(interval);
-            setResultImage(result.images?.[0]?.url);
           }
         }
       } catch (error) {
         toast.show('error', {message: error.message});
         clearInterval(interval);
+        navigation.navigate('Creation');
       }
-    }, 3000000);
+    }, 2000);
 
     return () => clearInterval(interval);
   }, []);
@@ -48,7 +57,7 @@ export default function ProgressScreen({route, navigation}) {
       <View style={styles.content}>
         {resultImage ? (
           <Image
-            source={{uri: resultImage}}
+            source={{uri: `http://192.168.1.114:3000${resultImage}`}}
             style={styles.resultImage}
             resizeMode="contain"
           />
