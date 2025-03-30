@@ -53,7 +53,6 @@ export default function ProgressScreen({route, navigation}) {
   return (
     <SafeAreaView style={styles.container}>
       <Header onBack={() => navigation.goBack()} />
-
       <View style={styles.content}>
         {resultImage ? (
           <Image
@@ -82,9 +81,9 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+    padding: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
   },
   progressContainer: {
     alignItems: 'center',
@@ -101,7 +100,7 @@ const styles = StyleSheet.create({
   },
   resultImage: {
     width: '100%',
-    height: '80%',
+    height: '100%',
     borderRadius: 12,
   },
 });
