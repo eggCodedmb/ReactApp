@@ -1,4 +1,7 @@
 {
   "name": "ReactApp",
-  "displayName": "ReactApp"
+  "displayName": "ReactApp",
+  "android": {
+    "permissions": ["android.permission.SCHEDULE_EXACT_ALARM"]
+  }
 }

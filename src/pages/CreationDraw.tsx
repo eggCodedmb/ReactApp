@@ -56,9 +56,16 @@ export default function CreationScreen({navigation}) {
     const loadModels = async () => {
       try {
         const res = await getModels();
-        setModelsList(res.result.models);
+        if (res.code === 0) {
+          // 处理模型数据
+          const data = res.result.map((item: any) => ({
+            value: item.model_name,
+            label: item.model_name,
+          }));
+          setModelsList(data);
+        }
       } catch (error) {
-        toast.show('error', {message: '模型加载失败，请稍后重试'});
+        toast.show('error', {message: error.message});
         setModelsList([]);
       } finally {
         setLoading(false);
@@ -74,7 +81,7 @@ export default function CreationScreen({navigation}) {
     try {
       const taskId = randomId();
 
-      const params = {
+      const data = {
         prompt: description,
         width: selectedSize?.width,
         height: selectedSize?.height,
@@ -83,12 +90,12 @@ export default function CreationScreen({navigation}) {
 
       navigation.navigate('Progress', {
         taskId,
-        initialImage: '',
+        data,
       });
-      const res = await txtToimg(params);
-      if (res.code === 0) {
-        await Storage.set(taskId, res.result.imgUrls[0]);
-      }
+      // const res = await txtToimg(params);
+      // if (res.code === 0) {
+      //   await Storage.set(taskId, res.result.imgUrls[0]);
+      // }
     } catch (error) {
       toast.show('error', {message: error.message || '生成请求失败'});
     }
@@ -150,10 +157,7 @@ export default function CreationScreen({navigation}) {
         {/* 模型选择 */}
         <Section title="选择模型">
           <TagSelector
-            tags={modelsList.map(model => ({
-              label: model.model_name,
-              value: model.title,
-            }))}
+            tags={modelsList}
             selectedValue={selectedModel}
             onSelect={setSelectedModel}
           />
